@@ -1,0 +1,342 @@
+---
+title: "Refresher Assignment"
+subtitle: _Analyzing William soy bean yields under water stress and sulphur dioxide treatments_
+author: "Candidate number : 1049719"
+date: "22/11/2022"
+output: 
+  html_document:
+    theme: united
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+Please follow [this link](https://github.com/boysenberryicecream/RefresherAssignmentMT22) to access my GitHub repository for this assignment. Please download the ZIP file as appropriate. 
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, comment="", prompt=TRUE)
+```
+```{r SetWd, include = FALSE, eval = FALSE}
+setwd() # Ensure to set your working directory
+getwd() # check it
+```
+
+```{r InstallPackages, include = FALSE, eval = FALSE}
+install.packages("arm")
+install.packages("Sleuth3")
+install.packages("ggplot2")
+install.packages("dplyr")
+install.packages("magrittr")
+install.packages("ragg")
+install.packages("svglite")
+```
+
+```{r LoadPackages, include = FALSE}
+library(ggplot2) # for Graphics functions
+library(Sleuth3) # for dataframe: case1402
+library(arm) # optional display() function
+library(dplyr) # for data manipulation 
+library(magrittr) # for piping 
+library(ragg) # for saving
+library(svglite) # for saving svgs
+```
+
+```{r CheckingData, include = FALSE, eval = FALSE}
+data(case1402) # loading in the data
+head(case1402) # looking at the first rows of the data
+View(case1402) # viewing the table 
+str(case1402) # looking at the structure of the data
+summary(case1402) # summarizing data 
+is.factor(case1402$Stress) # clarifying Stress is a factor
+```
+
+```{r SavingRawCSV, include = FALSE, eval = FALSE}
+write.csv(case1402, paste0(("refresher-assignment/data-raw/case1402-raw.csv"))) # saving the raw data 
+```
+
+```{r TransformingYields, echo = FALSE}
+case1402_trans <- mutate(case1402, log_William = log(case1402$William))
+View(case1402_trans) # transforming yields and making a new object for it
+```
+
+```{r SavingTransformedData, include = FALSE, eval = FALSE}
+write.csv(case1402_trans, paste0(("refresher-assignment/data-trans/case1402-transformed.csv"))) # saving the transformed data
+```
+
+# Diagnostic plots for the model 
+## Water stress, SO~2~, and their interaction 
+
+A linear model that analyses the (log transformed) yield of the William soy bean variety as a function of water stress, sulphur dioxide, and their interaction.
+
+```{r ANCOVAModel}
+interaction_william <- lm(log_William ~ SO2 + Stress + SO2*Stress, case1402_trans)  # making the model with an interaction 
+```
+
+```{r DataSummary, include = FALSE}
+summary(interaction_william)
+```
+
+```{r SaveSummaryInteraction2, include = FALSE}
+sink(file = "outputs/tables/summary-interaction.txt")
+summary(interaction_william)
+sink()
+```
+
+```{r ANOVAandSaving, include = FALSE}
+anova(interaction_william) # running the ANOVA (will process as ANCOVA)
+sink(file = "outputs/tables/ANCOVA-interaction.txt")
+anova(interaction_william)
+sink()
+```
+
+```{r, echo = FALSE, eval = FALSE}
+# Model without the interaction, for use in the analysis report
+noninteraction_william <- lm(log_William ~ SO2 + Stress, case1402_trans)
+anova(noninteraction_william)
+
+anova(noninteraction_william) # running the ANOVA (will process as ANCOVA)
+sink(file = "outputs/tables/ANCOVA-noninteraction.txt")
+anova(noninteraction_william)
+sink()
+```
+## Diagnostic plots 
+
+```{r DiagnosticPlots, figures-side, fig.show= TRUE, out.width="50%", echo = FALSE, message=FALSE }
+plot(interaction_william)
+```
+```{r, include = FALSE, echo = FALSE}
+par(mfrow=c(2,2)) #this sets the device to have 4 plots, note it isn't assigned to anything, it just sets the current device to being 2/2
+plot(interaction_william)
+
+
+agg_png("outputs/figures/diagnosticplots.png",  # saving plots as a png
+        width = 500, height = 500, units = "px") 
+par(mfrow=c(2,2)) # we have a new device that we have opened above (here it's a png device), so reset the 2/2
+plot(interaction_william)
+dev.off()
+
+```
+
+The **residuals vs fitted** plot shows a relatively equal spread of residuals around the horizontal line, indicating that we do not have non-linear relationships in the model. This suggests that there is a linear relationship between the predictor variables and the outcome variables. This fits our assumption of normality.
+
+The **Normal Q-Q** plot show that the residuals are fairly normally distributed. Although the residuals do deviate a little from the line towards the -2 and +2 theoretical quantiles, their placement overall indicates that there is not a significant amount of skew. This provides more evidence that this model fits our assumptions of normality.
+
+The **Scale-Location** plot shows us that the residuals are randomly spread along the ranges of predictors (the horizontal line). This indicates that that the model meets the assumption of equal variance, or homoscedasticity. 
+
+The **Residual vs Leverage** plot does not reveal any major influential subjects (outliers that are influential in the regression analysis). We do not see any outlying values in the upper right or at the lower right corner of the plot. Cook's distance lines are not visible because all cases are well inside them. This provides further support that the model is appropriate for linear model analysis (e.g. ANCOVA).
+
+Overall, the 4 plots analysed reveal that the model meets our assumptions of normality and homogeneity of variance. Thus, we may proceed with the linear model analyses. 
+
+# SO~2~ only  
+
+A linear regression model that analyses the (log transformed) yield of the William soy bean variety
+as a function of sulphur dioxide concentration only.
+
+## Fitting the model 
+```{r RegressionModel}
+SO2_william <- lm(log_William ~ SO2, case1402_trans) # fitting the linear model
+```
+```{r SummaryStats, eval = FALSE, echo = FALSE}
+summary(SO2_william) # summary of the linear regression
+```
+```{r SaveSummarySO2, include = FALSE}
+sink(file = "outputs/tables/summary-SO2.txt")
+summary(SO2_william)
+sink()
+```
+```{r ANOVA2andSaving, include = FALSE}
+anova(SO2_william) # running the ANOVA
+sink(file = "outputs/tables/ANOVA-SO2.txt")
+anova(SO2_william)
+sink() # saving as a txt file
+```
+## Scatterplot 
+```{r ScatterPlot, echo = FALSE}
+SO2_scatterplot <- ggplot(data = case1402_trans, aes(x = SO2, y = log_William)) +
+  geom_point(colour = "#AA4499") +
+  geom_smooth(method = "lm", level = 0.95, colour = "#882255") +
+  labs(title = "The effect of sulphur dioxide concentration on William soy bean yields",
+  subtitle = "A scatterplot showing a linear regression line with 95% confidence interval",
+  x = "Sulphur dioxide concentration",
+  y = "(log) William Soy bean yield",
+  caption = "Figure 1: Points are individual plant yields that were sampled. Shading is the 95% confidence interval.") +
+  annotate(geom = "text", x = 0.04, y = 8.4, label = bquote('Adjusted' ~ R^2 ~': 0.105 p-value: 0.045'), colour = "#882255") +
+  annotate(geom = "text", x = 0.04, y = 8.5, label = bquote('y = -3.77x + 8.26'), colour = "#882255") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold"),
+        plot.caption = element_text(hjust = 0))
+
+print(SO2_scatterplot)
+```
+
+```{r savingScatterplot, echo = FALSE, include = FALSE}
+svglite("outputs/figures/SO2_scatter.svg", 
+        width = 7, height = 6)
+SO2_scatterplot
+dev.off()
+```
+
+# Water stress only 
+
+A linear model that analyses the (log transformed) yield of the William soy bean variety
+as a function of water stress only.
+
+## Fitting the model 
+```{r ANOVAModel}
+water_william <- lm(log_William ~ Stress, case1402_trans) # fitting the linear regression model
+```
+```{r DataSummaryTwo, include = FALSE}
+summary(water_william) # summary of the data
+```
+```{r SaveSummaryInteraction, include = FALSE}
+sink(file = "outputs/tables/summary-water.txt")
+summary(water_william)
+sink()
+```
+
+```{r ANOVA3andSaving, include = FALSE}
+anova(water_william) # running the ANOVA
+sink(file = "outputs/tables/ANOVA-water.txt")
+anova(water_william)
+sink()
+```
+
+```{r ConfidenceIntervals, echo = FALSE}
+case1402_stressed <- case1402_trans %>% 
+  filter(Stress == "Stressed") # filtering data by stress treatment
+
+stressed_95LCI <- case1402_stressed %>%
+  dplyr::summarise(
+    lci = t.test(log_William, conf.level = 0.95)$conf.int[1]
+  ) # running statistical test for the lci and applying to object
+View(stressed_95LCI)  # viewing for numbers to input into geom_error
+
+stressed_95UCI <- case1402_stressed %>% 
+  dplyr::summarise(
+    uci = t.test(log_William, conf.level = 0.95)$conf.int[2]
+  ) # as above, but for the uci
+View(stressed_95UCI)
+
+stressed_99LCI <- case1402_stressed %>% 
+  dplyr::summarise(
+    lci = t.test(log_William, conf.level = 0.99)$conf.int[1]
+  )
+View(stressed_99LCI)
+
+stressed_99UCI <- case1402_stressed %>% 
+  dplyr::summarise(
+    uci = t.test(log_William, conf.level = 0.99)$conf.int[2]
+  )
+View(stressed_99UCI)
+
+case1402_WW <- case1402_trans %>% 
+  filter(Stress == "Well-watered") # repeating the above code for the well-watered
+#treatment
+
+WW_95LCI <- case1402_WW %>%
+  dplyr::summarise(
+    lci = t.test(log_William, conf.level = 0.95)$conf.int[1]
+  )
+View(WW_95LCI)
+
+WW_95UCI <- case1402_WW %>% 
+  dplyr::summarise(
+    uci = t.test(log_William, conf.level = 0.95)$conf.int[2]
+  )
+View(WW_95UCI)
+
+WW_99LCI <- case1402_WW %>% 
+  dplyr::summarise(
+    lci = t.test(log_William, conf.level = 0.99)$conf.int[1]
+  )
+View(WW_99LCI)
+
+WW_99UCI <- case1402_WW %>% 
+  dplyr::summarise(
+    uci = t.test(log_William, conf.level = 0.99)$conf.int[2]
+  )
+View(WW_99UCI)
+
+
+```
+
+## Boxplot 
+```{r Plotting, echo = FALSE, warning = FALSE}
+waterstress_boxplot <- ggplot(data = case1402_trans, aes(x = Stress, y = log_William, fill = Stress)) +
+  geom_boxplot(show.legend = FALSE, alpha = 0.6, border=c("#FFB000", "#7194EF"), col = c("#FFB000", "#7194EF")) + # visualizing the data
+  scale_fill_manual(values=c("#FFB000", "#7194EF")) +
+    geom_jitter(aes(color = Stress), alpha = 0.5, size = 2.5, show.legend = FALSE, position = position_jitter(width = 0.3, seed = 0)) +
+  scale_color_manual(values = c("#c38804", "#4875ea")) +
+  geom_errorbar(data = case1402_stressed, aes(ymin = 	
+7.94908, ymax = 8.203583), width = 0.2, size = 1, color = "black", linetype = "dashed") + # error bars for stressed CI 95
+  geom_errorbar(data = case1402_stressed, aes(ymin = 7.899713, ymax = 8.25295), width = 0.2, size = 1, color = "black") + # error bars for stressed CI 99
+  geom_errorbar(data = case1402_WW, aes(ymin = 8.107904, ymax = 8.400768), width = 0.2, size = 1, color = "black", linetype = "dashed") + # error bars for well-watered CI 95
+  geom_errorbar(data = case1402_WW, aes(ymin = 8.051096, ymax = 8.457576), width = 0.2, size = 1, color = "black") + # error bars for well-watered CI 99
+  stat_summary(fun = mean, geom = "point", size = 3.5, shape = 8, col = "black", show.legend = FALSE) +
+    labs(title = "The effect of water stress treatments on William soy bean yields",
+       subtitle = "A boxplot showing mean, 99th and 95th confidence intervals",
+       x = "Stress treatment",
+       y = "(log) William Soy bean yield",
+       caption = "Figure 2: 99% confidence interval for mean depicted by smooth black error bar. 95% confidence interval for mean \ndepicted by the dashed black error bar. Mean indicated with black star, Stressed 8.08 ± 0.06, Well-watered 8.25 ± 0.09.") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold"),
+         plot.caption = element_text(hjust = 0))
+
+print(waterstress_boxplot)
+```
+
+```{r SavingBoxplot, echo = FALSE, include = FALSE}
+# The following code will save the boxplot
+svglite("outputs/figures/waterstress_boxplot.svg", 
+        width = 7, height = 6)
+waterstress_boxplot
+dev.off()
+```
+
+
+# Analysis of results 
+
+A linear model approach has been used to analyse the response of the log transformed yield of the William variety of soy beans to the main effects of sulphur dioxide and water stress, as well as their interaction.  Version 4.2.2 of RStudio
+was used for all analyses. Results rounded to  2s.f. 
+
+## Interaction effects 
+
+A linear regression model (ANCOVA) was performed to examine the interaction between the effects of water stress treatment and SO^2^ concentration on log William soy bean yields. The fitted model is presented in the report above (section 1.1). There was a statistically insignificant interaction between stress treatment and SO^2^ concentration (ANCOVA, F(1,26) = 0.043, p = 0.84, Figure 1). However, statistically significant main effects were noted for both SO^2^ concentrations treatment (F(1,26) = 4.76, p = 0.038) and water stress treatment (F(1, 26) = 4.26, p = 0.049). Running a non-interactive model (lm(log_William ~ SO2 + Stress) confirms the main effects seen. For SO^2^ (ANCOVA, F(1, 27) = 4.94, p = 0.04) and for water stress (ANCOVA, F(1, 27) = 4.42, p = 0.05).
+
+## SO2 concentration only
+
+A linear regression model was performed to examine the effects of SO^2^ concentration only on log William soy bean yields (n = 30). The fitted regression is shown in the report above (section 2.1). The equation for the graph is y = 8.27(± 0.066) - 3.77(± 1.80)x. The overall regression was statistically significant  ((R^2^ = 0.14, Adjusted R^2^ = 0.10), F(1,28) = 4.40, p = 0.05, Figure 2). Thus, there was a statistically significant interaction between SO^2^ concentration and yield.
+
+## Water stress only 
+
+A linear regression model (ANOVA) was performed to examine the effects of water stress treatment (n = 15 for Stressed and n = 15 for Well-watered) only on log William soy bean yields. The fitted model is shown in the report above (section 3.1). The  model is no longer statistically significant (ANOVA, F(1,28) = 3.87, p = 0.06, Figure 2). Thus, we cannot reject the null hypothesis that all treatment groups are equal. The well watered treatment had the highest mean yield (8.25 ± 0.090), compared to the stress treatment (8.08 ± 0.06). The fact that stress treatment is no longer significant suggests that SO^2^ concentration has a confounding effect on soy bean plants water stress responses, although this interaction does not significantly impact yield when both treatments are modeled together. 
+
+The P-value, whilst non-significant at a 95% CI (confirmed in Figure 2 by the overlapping confidence intervals at both the 99 and 95% level) alludes to a marginal result. Because we have a marginal result for the ANCOVA test, the relationship between the factors and yields warrants further investigation. We suggest further experiments that analyse water stress across a wider range of stress treatments. 
+
+Both SO^2^ and water stress negatively affected soy bean yields, although the sample sizes for this study were small (N = 30). This analysis meets our assumptions that higher atmospheric sulphur dioxide concentration decrease yields (Padhi et al 2013). Higher SO^2^ concentrations promote stomatal opening, resulting in an excess loss of water (Ibid). Furthermore, SO^2^ reacts within the plant to form sulphuric acid, which damages plant cells by loss of Mg^2+^ in chlorophyll, leading to their breakdown, and thus a lowered rate of photosynthesis (Ibid).  Increased water stress would be expected to decrease plant yields, due to its impact of reduced photosynthesis rates, although we reported a marginal result with our water stress treatments. We noted an impact of the interaction model on increasing the significance of water treatment on plant yield. This further suggests that SO^2^ impacts how a plant responds to water stress, likely through increasing its vulnerability to water loss. Future studies should aim to repeat this experiment with larger sample sizes and a greater range of stress treatments in order to elucidate specific stress growth patterns more closely. 
+
+# References
+
+Padhi, S. K., Dash, M., & Swain, S. C. (2013). EFFECT OF SULPHUR DIOXIDE ON GROWTH, CHLOROPHYLL AND SULPHUR CONTENTS OF TOMATO (SOLANUM LYCOPERSICUM L.). European Scientific Journal, 9(36), 1857–7881.
+
+```{r InteractionVisualisation, eval = FALSE, include = FALSE, echo = FALSE}
+# Please note that this figure has been rendered to assist with visual understanding the underlying patterns of the ANCOVA interaction test.
+ggplot(case1402_trans, aes(x = SO2, y = log_William, colour = Stress)) +
+ geom_point() +
+ geom_smooth(method = "lm") +
+  scale_colour_manual(values = c("#FFB000", "#7194EF")) +
+ theme_bw()
+
+```
+
+
+```{r SavingSoftware, include = FALSE, message = FALSE, echo = FALSE}
+sink(file = "outputs/package-versions.txt")
+sessionInfo()
+sink()
+```
+
+
+
+
+
