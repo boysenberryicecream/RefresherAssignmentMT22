@@ -1,0 +1,10 @@
+Analysis of Variance Table
+
+Response: log_William
+          Df  Sum Sq  Mean Sq F value  Pr(>F)  
+SO2        1 0.26558 0.265581  4.9367 0.03486 *
+Stress     1 0.23764 0.237642  4.4174 0.04504 *
+Residuals 27 1.45252 0.053797                  
+---
+Signif. codes:  
+0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
